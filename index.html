@@ -109,7 +109,7 @@
 
  
 
-        kakao.maps.event.addListener(marker, 'mouseover', makeOverListener(map, marker, infowindow));
+        kakao.maps.event.addListener(marker, 'click', makeOverListener(map, marker, infowindow));
 
         kakao.maps.event.addListener(marker, 'mouseout', makeOutListener(infowindow));
 
@@ -158,5 +158,6 @@
     </body>
 
 </html>
+
 
 
