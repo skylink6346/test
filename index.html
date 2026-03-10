@@ -1,168 +1,212 @@
 <!DOCTYPE html>
-
 <html>
 
 <head>
+<meta charset="utf-8">
+<title>실도로 출장맵</title>
 
-    <meta charset="utf-8">
-    <title>실도로 출장맵</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta property="og:title" content="실도로 출장맵">
+<meta property="og:description" content="오늘 출장 어디로 가지..?">
+<meta property="og:image" content="preview_image.jpg">
+<meta property="og:url" content="https://skylink6346.github.io/test/">
+<meta property="og:type" content="website">
 
-    <meta property="og:title" content="실도로 출장맵">
-    <meta property="og:description" content="출장 위치를 지도에서 확인하세요">
-    <meta property="og:image" content="preview_image.jpg">
-    <meta property="og:url" content="https://skylink6346.github.io/test/">
-    <meta property="og:type" content="website">
+<style>
+
+/* ✅ 웹/모바일 스크롤 제거, 전체 레이아웃 */
+html, body{
+    margin:0;
+    padding:0;
+    height:100%;
+    overflow:hidden;
+    font-family: 'Noto Sans KR', Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    background:#f0f2f5;
+}
+
+/* 상단 안내 문구 */
+#header{
+    padding:20px 15px;
+    background:#ffffff;
+    border-bottom:1px solid #ddd;
+    text-align:center;
+    font-size:16px;
+    font-weight:500;
+    color:#333;
+    line-height:1.5;
+    box-shadow:0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* 지도 */
+#map{
+    flex:1; /* 남은 영역 모두 차지 */
+    margin:15px;
+    border:3px solid #333;
+    border-radius:10px;
+    box-sizing:border-box; /* border 포함 전체 크기 */
+    position:relative;
+    background:white;
+}
+
+/* 카테고리 박스 */
+.categoryBox{
+    position:absolute;
+    top:15px;
+    left:15px;
+    z-index:10;
+
+    display:flex;
+
+    background:white;
+    border-radius:6px;
+    overflow:hidden;
+
+    border:1px solid #ccc;
+    box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* 버튼 */
+.categoryBox button{
+    height:36px;
+    padding:0 16px;
+
+    border:none;
+    border-right:1px solid #ddd;
+
+    background:white;
+
+    font-size:14px;
+    font-weight:600;
+    color:#333;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    cursor:pointer;
+    transition: all 0.2s;
+}
+
+/* 마지막 버튼 border 제거 */
+.categoryBox button:last-child{
+    border-right:none;
+}
+
+/* hover */
+.categoryBox button:hover{
+    background:#f5f5f5;
+    color:#111;
+}
+
+/* 선택된 버튼 */
+.categoryBox button.active{
+    background:#2b7cff;
+    color:white;
+}
+
+</style>
 
 </head>
 
 <body>
 
-    <div id="map" style="width: calc(100vw-40px); height: calc(100vh - 40px); margin:20px; border: 5px solid black;border-radius: 10px;"></div>
+<!-- 상단 안내 문구 -->
+<div id="header">
+    안녕하세요, 출장맵 입니다.<br>
+    지도를 채울 수 있도록 정보를 알려주시면 감사하겠습니다!
+</div>
 
-    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=6bb54b3dc1397cbd2c37e8589769b6f4&libraries=clusterer"></script>
+<!-- 지도 영역 -->
+<div id="map">
 
-    <script>
+    <div class="categoryBox">
+        <button class="active" onclick="showCategory(event,'all')">전체</button>
+        <button onclick="showCategory(event,'hill')">등판로</button>
+        <button onclick="showCategory(event,'tunnel')">방음터널</button>
+        <button onclick="showCategory(event,'nscc')">NSCC-C</button>
+    </div>
 
-        var mapContainer = document.getElementById('map'), // 지도를 표시할 div
+</div>
 
-            mapOption = {
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=6bb54b3dc1397cbd2c37e8589769b6f4&libraries=clusterer"></script>
 
-                center: new kakao.maps.LatLng(37.39405, 127.02518), // 지도의 중심좌표
+<script>
+var mapContainer = document.getElementById('map'),
+    mapOption = {
+        center: new kakao.maps.LatLng(37.39405, 127.02518),
+        level: 5,
+        mapTypeId : kakao.maps.MapTypeId.ROADMAP
+    };
 
-                level: 5, // 지도의 확대 레벨
+var map = new kakao.maps.Map(mapContainer, mapOption);
 
-                mapTypeId : kakao.maps.MapTypeId.ROADMAP // 지도종류
+/* 클러스터 */
+var clusterer = new kakao.maps.MarkerClusterer({
+    map: map,
+    averageCenter: true,
+    minLevel: 10
+});
 
-            };
+/* 데이터 */
+var data = [
+    [37.39405,127.02518,'<div style="padding:5px">등판로</div>','hill'],
+    [37.28008,127.31003,'<div style="padding:5px">등판로</div>','hill'],
+    [37.18862,127.08822,'<div style="padding:5px">방음터널</div>','tunnel'],
+    [37.47123,128.10681,'<div style="padding:5px">NSCC-C</div>','nscc']
+];
 
- 
+var markers = [];
 
-        // 지도를 생성한다
+/* 마커 생성 */
+for (var i=0; i < data.length; i++) {
+    var marker = new kakao.maps.Marker({
+        position: new kakao.maps.LatLng(data[i][0], data[i][1]),
+        map: map
+    });
+    marker.category = data[i][3];
 
-        var map = new kakao.maps.Map(mapContainer, mapOption);
+    var infowindow = new kakao.maps.InfoWindow({
+        content : data[i][2],
+        removable : true
+    });
 
- 
+    markers.push(marker);
 
-            // 마커 클러스터러를 생성합니다
+    kakao.maps.event.addListener(marker, 'click', makeOverListener(map, marker, infowindow));
+}
 
-        var clusterer = new kakao.maps.MarkerClusterer({
+/* 클러스터 적용 */
+clusterer.addMarkers(markers);
 
-            map: map, // 마커들을 클러스터로 관리하고 표시할 지도 객체
+/* 카테고리 필터 */
+function showCategory(event,category){
+    clusterer.clear();
 
-            averageCenter: true, // 클러스터에 포함된 마커들의 평균 위치를 클러스터 마커 위치로 설정
-
-            minLevel: 10 // 클러스터 할 최소 지도 레벨
-
-        });
-
-       
-
-        var data = [
-
-            // [37.15724, 126.82404, '<div style="padding:5px">사무실</div>'],
-            [37.39405, 127.02518, '<div style="padding:5px">등판로</div>'],
-            [37.28008, 127.31003, '<div style="padding:5px">등판로</div>'],
-            [37.18862, 127.08822, '<div style="padding:5px">방음터널</div>'],
-            [37.47123, 127.10681, '<div style="padding:5px">NSCC-Z</div>'],
-
-
-        ];
-
- 
-
-        var markers = [];
-
- 
-
-        for (var i=0; i < data.length; i++) {
-
- 
-
-        // 지도에 마커를 생성하고 표시한다
-
-        var marker = new kakao.maps.Marker({
-
-            position: new kakao.maps.LatLng(data[i][0], data[i][1]), // 마커의 좌표
-
-            map: map // 마커를 표시할 지도 객체
-
-        });
-
-       
-
-        // 인포윈도우를 생성합니다
-
-        var iwRemoveable = true;
-
-        var infowindow = new kakao.maps.InfoWindow({
-
-            content : data[i][2],
-            removable : iwRemoveable
-
-        });
-
-       
-
-        // 마커 위에 인포윈도우를 표시합니다. 두번째 파라미터인 marker를 넣어주지 않으면 지도 위에 표시됩니다
-
-        //infowindow.open(map, marker);
-
-        markers.push(marker);
-
- 
-
-        kakao.maps.event.addListener(marker, 'click', makeOverListener(map, marker, infowindow));
-
-        // kakao.maps.event.addListener(marker, 'mouseout', makeOutListener(infowindow));
-
- 
-
+    var filteredMarkers = [];
+    for(var i=0;i<markers.length;i++){
+        if(category === "all" || markers[i].category === category){
+            filteredMarkers.push(markers[i]);
         }
+    }
 
- 
+    clusterer.addMarkers(filteredMarkers);
 
-        // 클러스터러에 마커들을 추가합니다
+    /* 버튼 active 표시 */
+    var buttons = document.querySelectorAll(".categoryBox button");
+    buttons.forEach(btn => btn.classList.remove("active"));
+    event.target.classList.add("active");
+}
 
-        clusterer.addMarkers(markers);
+/* 인포윈도우 */
+function makeOverListener(map, marker, infowindow) {
+    return function() {
+        infowindow.open(map, marker);
+    };
+}
+</script>
 
- 
-
-        // 인포윈도우를 표시하는 클로저를 만드는 함수입니다
-
-        function makeOverListener(map, marker, infowindow) {
-
-            return function() {
-
-                infowindow.open(map, marker);
-
-            };
-
-        }
-
-       
-
-        // 인포윈도우를 닫는 클로저를 만드는 함수입니다
-
-        function makeOutListener(infowindow) {
-
-            return function() {
-
-                infowindow.close();
-
-            };
-
-        }
-
-       
-
-        </script>
-
-    </body>
-
+</body>
 </html>
-
-
-
-
