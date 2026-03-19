@@ -130,21 +130,9 @@ var map = new kakao.maps.Map(mapContainer, mapOption);
 
 /* 마커 이미지 */
 var markerImages = {
-    hill: new kakao.maps.MarkerImage(
-        "RED.png",
-        new kakao.maps.Size(23,35),
-        { offset: new kakao.maps.Point(11.5,35) }
-    ),
-    tunnel: new kakao.maps.MarkerImage(
-        "GREEN.png",
-        new kakao.maps.Size(23,35),
-        { offset: new kakao.maps.Point(11.5,35) }
-    ),
-    nscc: new kakao.maps.MarkerImage(
-        "SKY.png",
-        new kakao.maps.Size(23,35),
-        { offset: new kakao.maps.Point(11.5,35) }
-    )
+    hill: new kakao.maps.MarkerImage("RED.png", new kakao.maps.Size(23,35), { offset: new kakao.maps.Point(11.5,35) }),
+    tunnel: new kakao.maps.MarkerImage("GREEN.png", new kakao.maps.Size(23,35), { offset: new kakao.maps.Point(11.5,35) }),
+    nscc: new kakao.maps.MarkerImage("SKY.png", new kakao.maps.Size(23,35), { offset: new kakao.maps.Point(11.5,35) })
 };
 
 /* 데이터 */
@@ -170,20 +158,30 @@ var markers = [];
 /* 마커 생성 */
 for (var i=0; i < data.length; i++) {
 
+    var lat = data[i][0];
+    var lng = data[i][1];
     var category = data[i][3];
 
     var marker = new kakao.maps.Marker({
-        position: new kakao.maps.LatLng(data[i][0], data[i][1]),
+        position: new kakao.maps.LatLng(lat, lng),
         image: markerImages[category]
     });
 
-    marker.setMap(map); // 🔥 직접 표시
+    marker.setMap(map);
 
     marker.category = category;
     marker.percent = data[i][4];
 
+    /* ✅ 정렬 + 버튼 스타일 적용 */
+    var content =
+        '<div style="padding:5px;">' +
+        data[i][2].replace('<div style="padding:5px">','').replace('</div>','') +
+        '<br>' +
+        '<a href="https://map.kakao.com/link/to/목적지,' + lat + ',' + lng + '" target="_blank" style="display:inline-block;margin-top:6px;padding:4px 8px;background:#2b7cff;color:white;border-radius:4px;font-size:12px;text-decoration:none;">길찾기</a>' +
+        '</div>';
+
     var infowindow = new kakao.maps.InfoWindow({
-        content : data[i][2],
+        content : content,
         removable : true
     });
 
