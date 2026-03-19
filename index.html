@@ -7,7 +7,15 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<meta property="og:title" content="실도로 출장맵">
+<meta property="og:description" content="오늘 출장 어디로 가지..?">
+<meta property="og:image" content="preview_image.jpg">
+<meta property="og:url" content="https://skylink6346.github.io/test/">
+<meta property="og:type" content="website">
+
 <style>
+
+/* ✅ 웹/모바일 스크롤 제거, 전체 레이아웃 */
 html, body{
     margin:0;
     padding:0;
@@ -19,79 +27,101 @@ html, body{
     background:#f0f2f5;
 }
 
+/* 상단 안내 문구 */
 #header{
     padding:20px 15px;
     background:#ffffff;
     border-bottom:1px solid #ddd;
     text-align:center;
+    font-size:16px;
+    font-weight:500;
+    color:#333;
+    line-height:1.5;
+    box-shadow:0 2px 4px rgba(0,0,0,0.05);
 }
 
+/* 지도 */
 #map{
-    flex:1;
+    flex:1; /* 남은 영역 모두 차지 */
     margin:15px;
     border:3px solid #333;
     border-radius:10px;
+    box-sizing:border-box; /* border 포함 전체 크기 */
     position:relative;
     background:white;
 }
 
-/* 카테고리 */
+/* 카테고리 박스 */
 .categoryBox{
     position:absolute;
     top:15px;
     left:15px;
     z-index:10;
+
     display:flex;
+
     background:white;
     border-radius:6px;
     overflow:hidden;
+
     border:1px solid #ccc;
+    box-shadow:0 2px 6px rgba(0,0,0,0.15);
 }
 
-/* 서브 카테고리 */
-.subCategoryBox{
-    position:absolute;
-    top:60px;
-    left:15px;
-    z-index:10;
-    display:none; /* 기본 숨김 */
-    background:white;
-    border-radius:6px;
-    overflow:hidden;
-    border:1px solid #ccc;
-}
-
-button{
+/* 버튼 */
+.categoryBox button{
     height:36px;
     padding:0 16px;
+
     border:none;
     border-right:1px solid #ddd;
+
     background:white;
+
+    font-size:14px;
     font-weight:600;
+    color:#333;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
     cursor:pointer;
+    transition: all 0.2s;
 }
 
-button:last-child{
+/* 마지막 버튼 border 제거 */
+.categoryBox button:last-child{
     border-right:none;
 }
 
-button.active{
+/* hover */
+.categoryBox button:hover{
+    background:#f5f5f5;
+    color:#111;
+}
+
+/* 선택된 버튼 */
+.categoryBox button.active{
     background:#2b7cff;
     color:white;
 }
+
 </style>
 
 </head>
 
 <body>
 
+<!-- 상단 안내 문구 -->
 <div id="header">
-    출장맵 입니다.
+    안녕하세요, 출장맵 입니다.<br>
+    지도에 추가하실 정보를 알려주시면 감사하겠습니다!
 </div>
 
+<!-- 지도 영역 -->
 <div id="map">
 
-    <!-- 메인 카테고리 -->
     <div class="categoryBox">
         <button class="active" onclick="showCategory(event,'all')">전체</button>
         <button onclick="showCategory(event,'hill')">등판로</button>
@@ -99,118 +129,96 @@ button.active{
         <button onclick="showCategory(event,'nscc')">NSCC-C</button>
     </div>
 
-    <!-- 등판로 서브 카테고리 -->
-    <div class="subCategoryBox" id="subBox">
-        <button onclick="filterHill(event,'all')">전체</button>
-        <button onclick="filterHill(event,'4')">4%</button>
-        <button onclick="filterHill(event,'8')">8%</button>
-    </div>
-
 </div>
 
-<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KEY&libraries=clusterer"></script>
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=6bb54b3dc1397cbd2c37e8589769b6f4&libraries=clusterer"></script>
 
 <script>
+var mapContainer = document.getElementById('map'),
+    mapOption = {
+        center: new kakao.maps.LatLng(37.39405, 127.02518),
+        level: 5,
+        mapTypeId : kakao.maps.MapTypeId.ROADMAP
+    };
 
-var map = new kakao.maps.Map(document.getElementById('map'), {
-    center: new kakao.maps.LatLng(37.39405, 127.02518),
-    level: 5
-});
+var map = new kakao.maps.Map(mapContainer, mapOption);
 
+/* 클러스터 */
 var clusterer = new kakao.maps.MarkerClusterer({
     map: map,
     averageCenter: true,
     minLevel: 10
 });
 
-/* 데이터 (중요: 5번째 값 추가 = 경사도) */
+/* 데이터 */
 var data = [
-    [37.39405,127.02518,'8%','hill'],
-    [37.28008,127.31003,'4%','hill'],
-    [37.39575,127.04223,'4%','hill'],
-    [37.25297,126.82222,'4%','hill'],
-    [37.47123,128.10681,'','nscc'],
-    [37.18862,127.08822,'','tunnel']
+    [37.39405,127.02518,'<div style="padding:5px">등판로<br>중속영역 8%</div>','hill'],
+    [37.28008,127.31003,'<div style="padding:5px">등판로</div>','hill'],
+    [37.18862,127.08822,'<div style="padding:5px">방음터널</div>','tunnel'],
+    [37.47123,128.10681,'<div style="padding:5px">NSCC-C</div>','nscc'],
+    [37.39575,127.04223,'<div style="padding:5px">등판로<br>저속영역 4%</div>','hill'],
+    [37.25297,126.82222,'<div style="padding:5px">등판로<br>중속영역 4%</div>','hill'],
+    [37.24014,126.82044,'<div style="padding:5px">등판로<br>중속영역 4%</div>','hill'],
+    [37.21441,126.96522,'<div style="padding:5px">방음터널</div>','tunnel'],
+    [37.23824,126.95171,'<div style="padding:5px">방음벽</div>','tunnel'],
+    [37.23824,126.95171,'<div style="padding:5px">방음벽</div>','tunnel'],
+    [37.32335,127.11599,'<div style="padding:5px">방음터널</div>','tunnel'],
+    [37.29368,127.08184,'<div style="padding:5px">방음터널</div>','tunnel'],
+    [37.29554,127.06980,'<div style="padding:5px">방음터널<br>지하차도</div>','tunnel'],
+    [37.30217,127.04831,'<div style="padding:5px">방음터널<br>직사각형</div>','tunnel'],
+    [37.31529,126.98152,'<div style="padding:5px">NSCC-C</div>','nscc'],
+    [37.21216,126.96567,'<div style="padding:5px">방음터널<br>지하차도</div>','tunnel'],
+
 ];
 
 var markers = [];
 
 /* 마커 생성 */
 for (var i=0; i < data.length; i++) {
-
     var marker = new kakao.maps.Marker({
-        position: new kakao.maps.LatLng(data[i][0], data[i][1])
+        position: new kakao.maps.LatLng(data[i][0], data[i][1]),
+        map: map
+    });
+    marker.category = data[i][3];
+
+    var infowindow = new kakao.maps.InfoWindow({
+        content : data[i][2],
+        removable : true
     });
 
-    marker.category = data[i][3];
-    marker.percent = data[i][2];
-
     markers.push(marker);
+
+    kakao.maps.event.addListener(marker, 'click', makeOverListener(map, marker, infowindow));
 }
 
+/* 클러스터 적용 */
 clusterer.addMarkers(markers);
 
-/* 메인 카테고리 */
-function showCategory(event, category){
-
+/* 카테고리 필터 */
+function showCategory(event,category){
     clusterer.clear();
 
-    var subBox = document.getElementById("subBox");
-
-    /* 등판로 선택 시만 서브 표시 */
-    if(category === "hill"){
-        subBox.style.display = "flex";
-    } else {
-        subBox.style.display = "none";
-        resetSubButtons();
-    }
-
-    var filtered = [];
-
+    var filteredMarkers = [];
     for(var i=0;i<markers.length;i++){
         if(category === "all" || markers[i].category === category){
-            filtered.push(markers[i]);
+            filteredMarkers.push(markers[i]);
         }
     }
 
-    clusterer.addMarkers(filtered);
+    clusterer.addMarkers(filteredMarkers);
 
-    setActive(event, ".categoryBox button");
-}
-
-/* 등판로 세부 필터 */
-function filterHill(event, percent){
-
-    clusterer.clear();
-
-    var filtered = [];
-
-    for(var i=0;i<markers.length;i++){
-        if(markers[i].category === "hill"){
-            if(percent === "all" || markers[i].percent.includes(percent)){
-                filtered.push(markers[i]);
-            }
-        }
-    }
-
-    clusterer.addMarkers(filtered);
-
-    setActive(event, ".subCategoryBox button");
-}
-
-/* active 처리 */
-function setActive(event, selector){
-    var buttons = document.querySelectorAll(selector);
+    /* 버튼 active 표시 */
+    var buttons = document.querySelectorAll(".categoryBox button");
     buttons.forEach(btn => btn.classList.remove("active"));
     event.target.classList.add("active");
 }
 
-/* 서브 버튼 초기화 */
-function resetSubButtons(){
-    var buttons = document.querySelectorAll(".subCategoryBox button");
-    buttons.forEach(btn => btn.classList.remove("active"));
+/* 인포윈도우 */
+function makeOverListener(map, marker, infowindow) {
+    return function() {
+        infowindow.open(map, marker);
+    };
 }
-
 </script>
 
 </body>
