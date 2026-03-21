@@ -253,23 +253,24 @@ html, body{
 /* 인포윈도우 커스텀 */
 .infoWrap{
     position:relative;
-    padding:8px 30px 8px 8px;
-    font-size:13px;
-    line-height:1.4;
-    min-width:120px;
+    padding:5px 22px 5px 6px;
+    font-size:11px;
+    line-height:1.25;
+    min-width:84px;
+    letter-spacing:-0.1px;
 }
 
 .infoClose{
     position:absolute;
-    top:6px;
-    right:6px;
-    width:18px;
-    height:18px;
+    top:4px;
+    right:4px;
+    width:14px;
+    height:14px;
     border:none;
     background:#eee;
     border-radius:50%;
-    font-size:12px;
-    line-height:18px;
+    font-size:9px;
+    line-height:14px;
     text-align:center;
     cursor:pointer;
     padding:0;
@@ -281,27 +282,35 @@ html, body{
 
 .infoOrder{
     position:absolute;
-    top:28px;
-    right:6px;
-    min-width:18px;
-    height:18px;
-    padding:0 4px;
+    top:20px;
+    right:4px;
+    min-width:14px;
+    height:14px;
+    padding:0 3px;
     background:#ff6b00;
     color:white;
-    border-radius:9px;
-    font-size:11px;
-    line-height:18px;
+    border-radius:7px;
+    font-size:9px;
+    line-height:14px;
     text-align:center;
     font-weight:600;
     box-sizing:border-box;
 }
 
+.infoText{
+    margin:0;
+    padding:0;
+    word-break:keep-all;
+}
+
 .infoLink{
     display:inline-block;
-    margin-top:6px;
+    margin-top:4px;
     color:#2b7cff;
     text-decoration:none;
     font-weight:600;
+    font-size:10px;
+    line-height:1.1;
 }
 
 .infoLink:hover{
@@ -403,29 +412,35 @@ html, body{
     }
 
     .infoWrap{
-        font-size:12px;
-        min-width:105px;
-        padding:7px 28px 7px 7px;
+        font-size:10px;
+        min-width:76px;
+        padding:4px 20px 4px 5px;
+        line-height:1.2;
     }
 
     .infoClose{
-        width:17px;
-        height:17px;
-        font-size:11px;
-        line-height:17px;
+        top:3px;
+        right:3px;
+        width:13px;
+        height:13px;
+        font-size:8px;
+        line-height:13px;
     }
 
     .infoOrder{
-        top:26px;
-        right:6px;
-        min-width:17px;
-        height:17px;
-        font-size:10px;
-        line-height:17px;
+        top:18px;
+        right:3px;
+        min-width:13px;
+        height:13px;
+        padding:0 2px;
+        font-size:8px;
+        line-height:13px;
+        border-radius:6.5px;
     }
 
     .infoLink{
-        font-size:12px;
+        margin-top:3px;
+        font-size:9px;
     }
 }
 
@@ -539,15 +554,16 @@ function buildInfoContent(marker){
         orderHtml = '<div class="infoOrder">' + order + '</div>';
     }
 
-    var bodyContent = marker.rawHtml.replace('<div style="padding:5px">','').replace('</div>','');
+    var bodyContent = marker.rawHtml
+        .replace('<div style="padding:5px">','')
+        .replace('</div>','');
 
     return '' +
         '<div class="infoWrap">' +
             '<button class="infoClose" onclick="removeMarkerById(' + marker.id + ')">×</button>' +
             orderHtml +
-            bodyContent +
-            '<br>' +
-            '<a class="infoLink" href="https://map.kakao.com/link/to/목적지,' + marker.lat + ',' + marker.lng + '" target="_blank">지도앱에서보기</a>' +
+            '<div class="infoText">' + bodyContent + '</div>' +
+            '<a class="infoLink" href="https://map.kakao.com/link/to/목적지,' + marker.lat + ',' + marker.lng + '" target="_blank">앱에서 보기</a>' +
         '</div>';
 }
 
