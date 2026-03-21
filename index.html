@@ -107,26 +107,68 @@ html, body{
     top:60px;
     right:15px;
     z-index:10;
-    width:220px;
+    width:240px;
     background:white;
     border:1px solid #ccc;
     border-radius:8px;
     padding:10px;
     display:none;
+    box-shadow:0 2px 8px rgba(0,0,0,0.08);
 }
 
 .routeItem{
     font-size:13px;
-    padding:6px;
+    padding:8px;
     border-bottom:1px solid #eee;
     display:flex;
     justify-content:space-between;
     align-items:center;
     cursor:grab;
+    background:#fff;
+    user-select:none;
+    gap:8px;
+}
+
+.routeItem.dragging{
+    opacity:0.5;
+}
+
+.routeItemLeft{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
+}
+
+.dragHandle{
+    font-size:16px;
+    color:#888;
+    line-height:1;
+}
+
+.routeText{
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.routeItem button{
+    border:none;
+    background:#ff6b00;
+    color:white;
+    border-radius:4px;
+    padding:4px 8px;
+    cursor:pointer;
+    flex-shrink:0;
+}
+
+.routeActions{
+    margin-top:10px;
+    display:flex;
+    gap:8px;
 }
 
 .clearBtn{
-    margin-top:10px;
     width:100%;
     padding:6px;
     background:#ff6b00;
@@ -134,6 +176,74 @@ html, body{
     border:none;
     border-radius:5px;
     cursor:pointer;
+}
+
+.actionBtn{
+    flex:1;
+    padding:6px;
+    background:#ff6b00;
+    color:white;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+/* 인포윈도우 커스텀 */
+.infoWrap{
+    position:relative;
+    padding:8px 30px 8px 8px;
+    font-size:13px;
+    line-height:1.4;
+    min-width:120px;
+}
+
+.infoClose{
+    position:absolute;
+    top:6px;
+    right:6px;
+    width:18px;
+    height:18px;
+    border:none;
+    background:#eee;
+    border-radius:50%;
+    font-size:12px;
+    line-height:18px;
+    text-align:center;
+    cursor:pointer;
+    padding:0;
+}
+
+.infoClose:hover{
+    background:#ddd;
+}
+
+.infoOrder{
+    position:absolute;
+    top:28px;
+    right:6px;
+    min-width:18px;
+    height:18px;
+    padding:0 4px;
+    background:#ff6b00;
+    color:white;
+    border-radius:9px;
+    font-size:11px;
+    line-height:18px;
+    text-align:center;
+    font-weight:600;
+    box-sizing:border-box;
+}
+
+.infoLink{
+    display:inline-block;
+    margin-top:6px;
+    color:#2b7cff;
+    text-decoration:none;
+    font-weight:600;
+}
+
+.infoLink:hover{
+    text-decoration:underline;
 }
 
 </style>
@@ -149,7 +259,6 @@ html, body{
 
 <div id="map">
 
-    <button class="routeBtn" onclick="createRoute()">경로 생성</button>
     <div id="routePanel" class="routePanel"></div>
 
     <div class="categoryBox">
@@ -206,21 +315,96 @@ var markers = [];
 var selectedMarkers = [];
 var dragIndex = null;
 
+function getMarkerLabel(marker){
+    var text = marker.rawHtml
+        .replace('<div style="padding:5px">','')
+        .replace('</div>','')
+        .replace(/<br\s*\/?>/gi, ' | ')
+        .replace(/<[^>]*>/g, '')
+        .trim();
+
+    return text || '경유지';
+}
+
+function getMarkerOrder(marker){
+    return selectedMarkers.indexOf(marker) + 1;
+}
+
+function buildInfoContent(marker){
+    var order = getMarkerOrder(marker);
+    var orderHtml = '';
+
+    if(order > 0){
+        orderHtml = '<div class="infoOrder">' + order + '</div>';
+    }
+
+    var bodyContent = marker.rawHtml.replace('<div style="padding:5px">','').replace('</div>','');
+
+    return '' +
+        '<div class="infoWrap">' +
+            '<button class="infoClose" onclick="removeMarkerById(' + marker.id + ')">×</button>' +
+            orderHtml +
+            bodyContent +
+            '<br>' +
+            '<a class="infoLink" href="https://map.kakao.com/link/to/목적지,' + marker.lat + ',' + marker.lng + '" target="_blank">지도앱에서보기</a>' +
+        '</div>';
+}
+
+function refreshInfoWindows(){
+    markers.forEach(function(marker){
+        if(marker.infowindow){
+            marker.infowindow.setContent(buildInfoContent(marker));
+            if(marker.selected){
+                marker.infowindow.open(map, marker);
+            }
+        }
+    });
+}
+
 function removeMarker(m){
+    if(!m) return;
+
     m.selected = false;
     m.setOpacity(1);
     if(m.infowindow) m.infowindow.close();
-    selectedMarkers = selectedMarkers.filter(x => x !== m);
+    selectedMarkers = selectedMarkers.filter(function(x){ return x !== m; });
     updateRoutePanel();
 }
 
+function removeMarkerById(id){
+    for(var i=0; i<markers.length; i++){
+        if(markers[i].id === id){
+            removeMarker(markers[i]);
+            break;
+        }
+    }
+}
+
 /* 드래그 */
-function dragStart(e, i){ dragIndex = i; }
-function dragOver(e){ e.preventDefault(); }
+function dragStart(e, i){
+    dragIndex = i;
+    e.currentTarget.classList.add("dragging");
+}
+
+function dragOver(e){
+    e.preventDefault();
+}
+
+function dragEnd(e){
+    e.currentTarget.classList.remove("dragging");
+}
+
 function drop(e, i){
     e.preventDefault();
+
+    if(dragIndex === null || dragIndex === i) {
+        dragIndex = null;
+        return;
+    }
+
     var moved = selectedMarkers.splice(dragIndex,1)[0];
     selectedMarkers.splice(i,0,moved);
+    dragIndex = null;
     updateRoutePanel();
 }
 
@@ -236,33 +420,21 @@ for (var i=0; i < data.length; i++) {
     });
 
     marker.setMap(map);
+    marker.id = i;
     marker.category = category;
     marker.percent = data[i][4];
     marker.lat = lat;
     marker.lng = lng;
     marker.selected = false;
-
-    var content =
-        '<div style="padding:5px;">' +
-        data[i][2].replace('<div style="padding:5px">','').replace('</div>','') +
-        '<br>' +
-        '<a href="https://map.kakao.com/link/to/목적지,' + lat + ',' + lng + '" target="_blank">지도앱에서보기</a>' +
-        '</div>';
+    marker.rawHtml = data[i][2];
 
     var infowindow = new kakao.maps.InfoWindow({
-        content : content,
-        removable : true
+        content : buildInfoContent(marker),
+        removable : false
     });
 
     marker.infowindow = infowindow;
     markers.push(marker);
-
-    // 🔥 핵심: X 버튼 연동
-    kakao.maps.event.addListener(infowindow, 'closeclick', function(m){
-        return function(){
-            removeMarker(m);
-        };
-    }(marker));
 
     kakao.maps.event.addListener(marker, 'click', function(m) {
         return function() {
@@ -273,6 +445,7 @@ for (var i=0; i < data.length; i++) {
                 m.selected = true;
                 selectedMarkers.push(m);
                 m.setOpacity(0.5);
+                m.infowindow.setContent(buildInfoContent(m));
                 m.infowindow.open(map, m);
                 updateRoutePanel();
             }
@@ -287,6 +460,8 @@ function updateRoutePanel(){
 
     if(selectedMarkers.length === 0){
         panel.style.display = "none";
+        panel.innerHTML = "";
+        refreshInfoWindows();
         return;
     }
 
@@ -301,15 +476,24 @@ function updateRoutePanel(){
             draggable="true"
             ondragstart="dragStart(event, ${i})"
             ondragover="dragOver(event)"
-            ondrop="drop(event, ${i})">
-            <span>${i+1}번 경유지</span>
+            ondrop="drop(event, ${i})"
+            ondragend="dragEnd(event)">
+            <div class="routeItemLeft">
+                <span class="dragHandle">☰</span>
+                <span class="routeText">${i+1}. ${getMarkerLabel(m)}</span>
+            </div>
             <button onclick="removeItem(${i})">X</button>
         </div>`;
     });
 
-    html += `<button class="clearBtn" onclick="clearAll()">선택 초기화</button>`;
+    html += `
+    <div class="routeActions">
+        <button class="actionBtn" onclick="createRoute()">경로 생성</button>
+        <button class="actionBtn" onclick="clearAll()">선택 초기화</button>
+    </div>`;
 
     panel.innerHTML = html;
+    refreshInfoWindows();
 }
 
 function removeItem(i){
@@ -317,12 +501,12 @@ function removeItem(i){
 }
 
 function clearAll(){
-    selectedMarkers.forEach(m=>{
-        m.selected=false;
+    selectedMarkers.forEach(function(m){
+        m.selected = false;
         m.setOpacity(1);
         if(m.infowindow) m.infowindow.close();
     });
-    selectedMarkers=[];
+    selectedMarkers = [];
     updateRoutePanel();
 }
 
@@ -366,7 +550,9 @@ function showCategory(event,category){
     }
 
     var buttons = document.querySelectorAll(".categoryBox button");
-    buttons.forEach(btn => btn.classList.remove("active"));
+    buttons.forEach(function(btn){
+        btn.classList.remove("active");
+    });
     event.target.classList.add("active");
 }
 
@@ -386,7 +572,9 @@ function filterHill(event,percent){
     }
 
     var buttons = document.querySelectorAll(".subCategoryBox button");
-    buttons.forEach(btn => btn.classList.remove("active"));
+    buttons.forEach(function(btn){
+        btn.classList.remove("active");
+    });
     event.target.classList.add("active");
 }
 
