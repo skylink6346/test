@@ -88,6 +88,21 @@ html, body{
     color:white;
 }
 
+/* ✅ 경로 생성 버튼 (추가) */
+.routeBtn{
+    position:absolute;
+    top:15px;
+    right:15px;
+    z-index:10;
+    padding:8px 14px;
+    background:#ff6b00;
+    color:white;
+    border:none;
+    border-radius:6px;
+    font-weight:600;
+    cursor:pointer;
+}
+
 </style>
 
 </head>
@@ -100,6 +115,9 @@ html, body{
 </div>
 
 <div id="map">
+
+    <!-- ✅ 버튼 추가 -->
+    <button class="routeBtn" onclick="createRoute()">경로 생성</button>
 
     <div class="categoryBox">
         <button class="active" onclick="showCategory(event,'all')">전체</button>
@@ -135,7 +153,7 @@ var markerImages = {
     nscc: new kakao.maps.MarkerImage("SKY.png", new kakao.maps.Size(23,35), { offset: new kakao.maps.Point(11.5,35) })
 };
 
-/* 데이터 */
+/* 데이터 (완전 유지) */
 var data = [
     [37.39405,127.02518,'<div style="padding:5px">등판로<br>중속영역 8%</div>','hill','8'],
     [37.28008,127.31003,'<div style="padding:5px">등판로</div>','hill','4'],
@@ -154,43 +172,81 @@ var data = [
 ];
 
 var markers = [];
+var selectedMarkers = [];
 
 /* 마커 생성 */
 for (var i=0; i < data.length; i++) {
 
-    var lat = data[i][0];
-    var lng = data[i][1];
-    var category = data[i][3];
+    (function(i){
 
-    var marker = new kakao.maps.Marker({
-        position: new kakao.maps.LatLng(lat, lng),
-        image: markerImages[category]
-    });
+        var lat = data[i][0];
+        var lng = data[i][1];
+        var category = data[i][3];
 
-    marker.setMap(map);
+        var marker = new kakao.maps.Marker({
+            position: new kakao.maps.LatLng(lat, lng),
+            image: markerImages[category]
+        });
 
-    marker.category = category;
-    marker.percent = data[i][4];
+        marker.setMap(map);
+        marker.category = category;
+        marker.percent = data[i][4];
+        marker.lat = lat;
+        marker.lng = lng;
+        marker.selected = false;
 
-    /* ✅ 정렬 + 버튼 스타일 적용 */
-    var content =
-        '<div style="padding:5px;">' +
-        data[i][2].replace('<div style="padding:5px">','').replace('</div>','') +
-        '<br>' +
-        '<a href="https://map.kakao.com/link/to/목적지,' + lat + ',' + lng + '" target="_blank" style="display:inline-block;margin-top:6px;padding:4px 8px;background:#2b7cff;color:white;border-radius:4px;font-size:12px;text-decoration:none;">길찾기</a>' +
-        '</div>';
+        /* 버튼 이름만 변경 */
+        var content =
+            '<div style="padding:5px;">' +
+            data[i][2].replace('<div style="padding:5px">','').replace('</div>','') +
+            '<br>' +
+            '<a href="https://map.kakao.com/link/to/목적지,' + lat + ',' + lng + '" target="_blank" style="display:inline-block;margin-top:6px;padding:4px 8px;background:#2b7cff;color:white;border-radius:4px;font-size:12px;text-decoration:none;">지도앱에서보기</a>' +
+            '</div>';
 
-    var infowindow = new kakao.maps.InfoWindow({
-        content : content,
-        removable : true
-    });
+        var infowindow = new kakao.maps.InfoWindow({
+            content : content,
+            removable : true
+        });
 
-    markers.push(marker);
+        markers.push(marker);
 
-    kakao.maps.event.addListener(marker, 'click', makeOverListener(map, marker, infowindow));
+        kakao.maps.event.addListener(marker, 'click', function() {
+
+            infowindow.open(map, marker);
+
+            /* 선택 토글 */
+            marker.selected = !marker.selected;
+
+            if(marker.selected){
+                selectedMarkers.push(marker);
+                marker.setOpacity(0.5);
+            }else{
+                selectedMarkers = selectedMarkers.filter(m => m !== marker);
+                marker.setOpacity(1);
+            }
+        });
+
+    })(i);
 }
 
-/* 필터 */
+/* 경로 생성 */
+function createRoute(){
+
+    if(selectedMarkers.length < 2){
+        alert("마커를 2개 이상 선택하세요");
+        return;
+    }
+
+    var url = "https://map.kakao.com/link/to/";
+
+    selectedMarkers.forEach(function(m, i){
+        url += (i+1) + "," + m.lat + "," + m.lng + "/";
+    });
+
+    window.open(url, "_blank");
+}
+
+/* 기존 기능 유지 */
 function showCategory(event,category){
 
     var subBox = document.getElementById("subBox");
@@ -237,12 +293,6 @@ function filterHill(event,percent){
     var buttons = document.querySelectorAll(".subCategoryBox button");
     buttons.forEach(btn => btn.classList.remove("active"));
     event.target.classList.add("active");
-}
-
-function makeOverListener(map, marker, infowindow) {
-    return function() {
-        infowindow.open(map, marker);
-    };
 }
 
 </script>
