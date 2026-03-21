@@ -88,7 +88,6 @@ html, body{
     color:white;
 }
 
-/* 추가 UI */
 .routeBtn{
     position:absolute;
     top:15px;
@@ -123,13 +122,14 @@ html, body{
     display:flex;
     justify-content:space-between;
     align-items:center;
+    cursor:grab;
 }
 
 .clearBtn{
     margin-top:10px;
     width:100%;
     padding:6px;
-    background:#999;
+    background:#ff6b00;
     color:white;
     border:none;
     border-radius:5px;
@@ -204,6 +204,25 @@ var data = [
 
 var markers = [];
 var selectedMarkers = [];
+var dragIndex = null;
+
+function removeMarker(m){
+    m.selected = false;
+    m.setOpacity(1);
+    if(m.infowindow) m.infowindow.close();
+    selectedMarkers = selectedMarkers.filter(x => x !== m);
+    updateRoutePanel();
+}
+
+/* 드래그 */
+function dragStart(e, i){ dragIndex = i; }
+function dragOver(e){ e.preventDefault(); }
+function drop(e, i){
+    e.preventDefault();
+    var moved = selectedMarkers.splice(dragIndex,1)[0];
+    selectedMarkers.splice(i,0,moved);
+    updateRoutePanel();
+}
 
 for (var i=0; i < data.length; i++) {
 
@@ -227,7 +246,7 @@ for (var i=0; i < data.length; i++) {
         '<div style="padding:5px;">' +
         data[i][2].replace('<div style="padding:5px">','').replace('</div>','') +
         '<br>' +
-        '<a href="https://map.kakao.com/link/to/목적지,' + lat + ',' + lng + '" target="_blank" style="display:inline-block;margin-top:6px;padding:4px 8px;background:#2b7cff;color:white;border-radius:4px;font-size:12px;text-decoration:none;">지도앱에서보기</a>' +
+        '<a href="https://map.kakao.com/link/to/목적지,' + lat + ',' + lng + '" target="_blank">지도앱에서보기</a>' +
         '</div>';
 
     var infowindow = new kakao.maps.InfoWindow({
@@ -235,38 +254,33 @@ for (var i=0; i < data.length; i++) {
         removable : true
     });
 
+    marker.infowindow = infowindow;
     markers.push(marker);
 
-    // 기존 이벤트 유지
-    kakao.maps.event.addListener(marker, 'click', makeOverListener(map, marker, infowindow));
+    // 🔥 핵심: X 버튼 연동
+    kakao.maps.event.addListener(infowindow, 'closeclick', function(m){
+        return function(){
+            removeMarker(m);
+        };
+    }(marker));
 
-    // ✅ 추가 이벤트 (선택 기능)
     kakao.maps.event.addListener(marker, 'click', function(m) {
         return function() {
 
-            m.selected = !m.selected;
-
             if(m.selected){
+                removeMarker(m);
+            } else {
+                m.selected = true;
                 selectedMarkers.push(m);
                 m.setOpacity(0.5);
-            } else {
-                selectedMarkers = selectedMarkers.filter(x => x !== m);
-                m.setOpacity(1);
+                m.infowindow.open(map, m);
+                updateRoutePanel();
             }
 
-            updateRoutePanel();
         };
     }(marker));
 }
 
-/* 기존 함수 유지 */
-function makeOverListener(map, marker, infowindow) {
-    return function() {
-        infowindow.open(map, marker);
-    };
-}
-
-/* UI 업데이트 */
 function updateRoutePanel(){
 
     var panel = document.getElementById("routePanel");
@@ -283,13 +297,13 @@ function updateRoutePanel(){
     selectedMarkers.forEach(function(m, i){
 
         html += `
-        <div class="routeItem">
+        <div class="routeItem"
+            draggable="true"
+            ondragstart="dragStart(event, ${i})"
+            ondragover="dragOver(event)"
+            ondrop="drop(event, ${i})">
             <span>${i+1}번 경유지</span>
-            <div>
-                <button onclick="moveUp(${i})">↑</button>
-                <button onclick="moveDown(${i})">↓</button>
-                <button onclick="removeItem(${i})">X</button>
-            </div>
+            <button onclick="removeItem(${i})">X</button>
         </div>`;
     });
 
@@ -298,29 +312,15 @@ function updateRoutePanel(){
     panel.innerHTML = html;
 }
 
-function moveUp(i){
-    if(i===0) return;
-    [selectedMarkers[i], selectedMarkers[i-1]] = [selectedMarkers[i-1], selectedMarkers[i]];
-    updateRoutePanel();
-}
-
-function moveDown(i){
-    if(i===selectedMarkers.length-1) return;
-    [selectedMarkers[i], selectedMarkers[i+1]] = [selectedMarkers[i+1], selectedMarkers[i]];
-    updateRoutePanel();
-}
-
 function removeItem(i){
-    selectedMarkers[i].selected = false;
-    selectedMarkers[i].setOpacity(1);
-    selectedMarkers.splice(i,1);
-    updateRoutePanel();
+    removeMarker(selectedMarkers[i]);
 }
 
 function clearAll(){
     selectedMarkers.forEach(m=>{
         m.selected=false;
         m.setOpacity(1);
+        if(m.infowindow) m.infowindow.close();
     });
     selectedMarkers=[];
     updateRoutePanel();
@@ -328,8 +328,8 @@ function clearAll(){
 
 function createRoute(){
 
-    if(selectedMarkers.length < 2){
-        alert("마커를 2개 이상 선택하세요");
+    if(selectedMarkers.length < 1){
+        alert("마커를 선택하세요");
         return;
     }
 
@@ -342,7 +342,6 @@ function createRoute(){
     window.open(url);
 }
 
-/* 기존 필터 그대로 */
 function showCategory(event,category){
 
     var subBox = document.getElementById("subBox");
