@@ -27,7 +27,7 @@ html, body{
 }
 
 #header{
-    padding:20px 15px;
+    padding:14px 15px;
     background:#ffffff;
     border-bottom:1px solid #ddd;
     text-align:center;
@@ -188,6 +188,44 @@ html, body{
     cursor:pointer;
 }
 
+/* 현재 위치 버튼 */
+.locationBtn{
+    position:absolute;
+    right:15px;
+    bottom:15px;
+    z-index:10;
+    width:42px;
+    height:42px;
+    border:1px solid #ccc;
+    border-radius:50%;
+    background:#ffffff;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+}
+
+.locationBtn:hover{
+    background:#f7f7f7;
+}
+
+.locationBtn svg{
+    width:22px;
+    height:22px;
+    display:block;
+}
+
+.currentLocationDot{
+    width:14px;
+    height:14px;
+    background:#2b7cff;
+    border:3px solid rgba(43,124,255,0.25);
+    border-radius:50%;
+    box-sizing:border-box;
+}
+
 /* 인포윈도우 커스텀 */
 .infoWrap{
     position:relative;
@@ -246,6 +284,116 @@ html, body{
     text-decoration:underline;
 }
 
+@media screen and (max-width: 768px){
+
+    #header{
+        padding:10px 12px;
+        font-size:14px;
+    }
+
+    #map{
+        margin:10px;
+        border-width:2px;
+    }
+
+    .categoryBox{
+        top:10px;
+        left:10px;
+        transform:scale(0.78);
+        transform-origin:top left;
+    }
+
+    .subCategoryBox{
+        top:45px;
+        left:10px;
+        transform:scale(0.78);
+        transform-origin:top left;
+    }
+
+    .routePanel{
+        top:10px;
+        right:10px;
+        width:180px;
+        padding:8px;
+        border-radius:7px;
+    }
+
+    .routeItem{
+        font-size:11px;
+        padding:6px;
+        gap:6px;
+    }
+
+    .routeItemLeft{
+        gap:6px;
+    }
+
+    .dragHandle{
+        font-size:13px;
+    }
+
+    .routeItem button{
+        padding:3px 6px;
+        font-size:11px;
+    }
+
+    .routeActions{
+        margin-top:8px;
+        gap:6px;
+    }
+
+    .actionBtn,
+    .clearBtn{
+        padding:5px;
+        font-size:11px;
+        border-radius:4px;
+    }
+
+    .locationBtn{
+        right:10px;
+        bottom:10px;
+        width:36px;
+        height:36px;
+    }
+
+    .locationBtn svg{
+        width:19px;
+        height:19px;
+    }
+
+    .currentLocationDot{
+        width:12px;
+        height:12px;
+        border-width:2px;
+    }
+
+    .infoWrap{
+        font-size:12px;
+        min-width:105px;
+        padding:7px 28px 7px 7px;
+    }
+
+    .infoClose{
+        width:17px;
+        height:17px;
+        font-size:11px;
+        line-height:17px;
+    }
+
+    .infoOrder{
+        top:26px;
+        right:6px;
+        min-width:17px;
+        height:17px;
+        font-size:10px;
+        line-height:17px;
+    }
+
+    .infoLink{
+        font-size:12px;
+    }
+}
+
 </style>
 
 </head>
@@ -253,8 +401,7 @@ html, body{
 <body>
 
 <div id="header">
-    안녕하세요, 출장맵 입니다.<br>
-    지도에 추가하실 정보를 알려주시면 감사하겠습니다!
+    안녕하세요, 출장맵 입니다.
 </div>
 
 <div id="map">
@@ -273,6 +420,16 @@ html, body{
         <button onclick="filterHill(event,'4')">4%</button>
         <button onclick="filterHill(event,'8')">8%</button>
     </div>
+
+    <button class="locationBtn" onclick="moveToCurrentLocation()" aria-label="현재 위치">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="2.5" x2="12" y2="6"></line>
+            <line x1="12" y1="18" x2="12" y2="21.5"></line>
+            <line x1="2.5" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="21.5" y2="12"></line>
+        </svg>
+    </button>
 
 </div>
 
@@ -314,6 +471,8 @@ var data = [
 var markers = [];
 var selectedMarkers = [];
 var dragIndex = null;
+var currentLocation = null;
+var currentLocationOverlay = null;
 
 function getMarkerLabel(marker){
     var text = marker.rawHtml
@@ -359,6 +518,76 @@ function refreshInfoWindows(){
             }
         }
     });
+}
+
+function setCurrentLocationDot(lat, lng){
+    currentLocation = {
+        lat: lat,
+        lng: lng
+    };
+
+    var position = new kakao.maps.LatLng(lat, lng);
+
+    if(currentLocationOverlay){
+        currentLocationOverlay.setMap(null);
+    }
+
+    var dot = document.createElement('div');
+    dot.className = 'currentLocationDot';
+
+    currentLocationOverlay = new kakao.maps.CustomOverlay({
+        position: position,
+        content: dot,
+        yAnchor: 0.5,
+        xAnchor: 0.5
+    });
+
+    currentLocationOverlay.setMap(map);
+}
+
+function getCurrentLocation(successCallback, errorCallback){
+    if(!navigator.geolocation){
+        if(errorCallback) errorCallback();
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position){
+            var lat = position.coords.latitude;
+            var lng = position.coords.longitude;
+            setCurrentLocationDot(lat, lng);
+            if(successCallback) successCallback(lat, lng);
+        },
+        function(){
+            if(errorCallback) errorCallback();
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        }
+    );
+}
+
+function moveToCurrentLocation(){
+    getCurrentLocation(
+        function(lat, lng){
+            map.setCenter(new kakao.maps.LatLng(lat, lng));
+        },
+        function(){
+            alert("현재 위치를 가져올 수 없습니다.");
+        }
+    );
+}
+
+function initCurrentLocation(){
+    getCurrentLocation(
+        function(lat, lng){
+            map.setCenter(new kakao.maps.LatLng(lat, lng));
+        },
+        function(){
+        }
+    );
 }
 
 function removeMarker(m){
@@ -517,13 +746,40 @@ function createRoute(){
         return;
     }
 
-    var url = "https://map.kakao.com/link/to/";
+    var destinationUrl = "https://map.kakao.com/link/to/";
 
     selectedMarkers.forEach(function(m,i){
-        url += (i+1)+","+m.lat+","+m.lng+"/";
+        destinationUrl += (i+1)+","+m.lat+","+m.lng+"/";
     });
 
-    window.open(url);
+    if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(
+            function(position){
+                currentLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+
+                setCurrentLocationDot(currentLocation.lat, currentLocation.lng);
+
+                var firstMarker = selectedMarkers[0];
+                var url = "https://map.kakao.com/link/from/현재위치," + currentLocation.lat + "," + currentLocation.lng +
+                          "/to/" + firstMarker.lat + "," + firstMarker.lng;
+
+                window.open(url);
+            },
+            function(){
+                window.open(destinationUrl);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+        );
+    } else {
+        window.open(destinationUrl);
+    }
 }
 
 function showCategory(event,category){
@@ -577,6 +833,8 @@ function filterHill(event,percent){
     });
     event.target.classList.add("active");
 }
+
+initCurrentLocation();
 
 </script>
 
