@@ -88,7 +88,7 @@ html, body{
     color:white;
 }
 
-/* ✅ 경로 생성 버튼 (추가) */
+/* 추가 UI */
 .routeBtn{
     position:absolute;
     top:15px;
@@ -100,6 +100,39 @@ html, body{
     border:none;
     border-radius:6px;
     font-weight:600;
+    cursor:pointer;
+}
+
+.routePanel{
+    position:absolute;
+    top:60px;
+    right:15px;
+    z-index:10;
+    width:220px;
+    background:white;
+    border:1px solid #ccc;
+    border-radius:8px;
+    padding:10px;
+    display:none;
+}
+
+.routeItem{
+    font-size:13px;
+    padding:6px;
+    border-bottom:1px solid #eee;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.clearBtn{
+    margin-top:10px;
+    width:100%;
+    padding:6px;
+    background:#999;
+    color:white;
+    border:none;
+    border-radius:5px;
     cursor:pointer;
 }
 
@@ -116,8 +149,8 @@ html, body{
 
 <div id="map">
 
-    <!-- ✅ 버튼 추가 -->
     <button class="routeBtn" onclick="createRoute()">경로 생성</button>
+    <div id="routePanel" class="routePanel"></div>
 
     <div class="categoryBox">
         <button class="active" onclick="showCategory(event,'all')">전체</button>
@@ -146,14 +179,12 @@ var mapContainer = document.getElementById('map'),
 
 var map = new kakao.maps.Map(mapContainer, mapOption);
 
-/* 마커 이미지 */
 var markerImages = {
     hill: new kakao.maps.MarkerImage("RED.png", new kakao.maps.Size(23,35), { offset: new kakao.maps.Point(11.5,35) }),
     tunnel: new kakao.maps.MarkerImage("GREEN.png", new kakao.maps.Size(23,35), { offset: new kakao.maps.Point(11.5,35) }),
     nscc: new kakao.maps.MarkerImage("SKY.png", new kakao.maps.Size(23,35), { offset: new kakao.maps.Point(11.5,35) })
 };
 
-/* 데이터 (완전 유지) */
 var data = [
     [37.39405,127.02518,'<div style="padding:5px">등판로<br>중속영역 8%</div>','hill','8'],
     [37.28008,127.31003,'<div style="padding:5px">등판로</div>','hill','4'],
@@ -174,62 +205,127 @@ var data = [
 var markers = [];
 var selectedMarkers = [];
 
-/* 마커 생성 */
 for (var i=0; i < data.length; i++) {
 
-    (function(i){
+    var lat = data[i][0];
+    var lng = data[i][1];
+    var category = data[i][3];
 
-        var lat = data[i][0];
-        var lng = data[i][1];
-        var category = data[i][3];
+    var marker = new kakao.maps.Marker({
+        position: new kakao.maps.LatLng(lat, lng),
+        image: markerImages[category]
+    });
 
-        var marker = new kakao.maps.Marker({
-            position: new kakao.maps.LatLng(lat, lng),
-            image: markerImages[category]
-        });
+    marker.setMap(map);
+    marker.category = category;
+    marker.percent = data[i][4];
+    marker.lat = lat;
+    marker.lng = lng;
+    marker.selected = false;
 
-        marker.setMap(map);
-        marker.category = category;
-        marker.percent = data[i][4];
-        marker.lat = lat;
-        marker.lng = lng;
-        marker.selected = false;
+    var content =
+        '<div style="padding:5px;">' +
+        data[i][2].replace('<div style="padding:5px">','').replace('</div>','') +
+        '<br>' +
+        '<a href="https://map.kakao.com/link/to/목적지,' + lat + ',' + lng + '" target="_blank" style="display:inline-block;margin-top:6px;padding:4px 8px;background:#2b7cff;color:white;border-radius:4px;font-size:12px;text-decoration:none;">지도앱에서보기</a>' +
+        '</div>';
 
-        /* 버튼 이름만 변경 */
-        var content =
-            '<div style="padding:5px;">' +
-            data[i][2].replace('<div style="padding:5px">','').replace('</div>','') +
-            '<br>' +
-            '<a href="https://map.kakao.com/link/to/목적지,' + lat + ',' + lng + '" target="_blank" style="display:inline-block;margin-top:6px;padding:4px 8px;background:#2b7cff;color:white;border-radius:4px;font-size:12px;text-decoration:none;">지도앱에서보기</a>' +
-            '</div>';
+    var infowindow = new kakao.maps.InfoWindow({
+        content : content,
+        removable : true
+    });
 
-        var infowindow = new kakao.maps.InfoWindow({
-            content : content,
-            removable : true
-        });
+    markers.push(marker);
 
-        markers.push(marker);
+    // 기존 이벤트 유지
+    kakao.maps.event.addListener(marker, 'click', makeOverListener(map, marker, infowindow));
 
-        kakao.maps.event.addListener(marker, 'click', function() {
+    // ✅ 추가 이벤트 (선택 기능)
+    kakao.maps.event.addListener(marker, 'click', function(m) {
+        return function() {
 
-            infowindow.open(map, marker);
+            m.selected = !m.selected;
 
-            /* 선택 토글 */
-            marker.selected = !marker.selected;
-
-            if(marker.selected){
-                selectedMarkers.push(marker);
-                marker.setOpacity(0.5);
-            }else{
-                selectedMarkers = selectedMarkers.filter(m => m !== marker);
-                marker.setOpacity(1);
+            if(m.selected){
+                selectedMarkers.push(m);
+                m.setOpacity(0.5);
+            } else {
+                selectedMarkers = selectedMarkers.filter(x => x !== m);
+                m.setOpacity(1);
             }
-        });
 
-    })(i);
+            updateRoutePanel();
+        };
+    }(marker));
 }
 
-/* 경로 생성 */
+/* 기존 함수 유지 */
+function makeOverListener(map, marker, infowindow) {
+    return function() {
+        infowindow.open(map, marker);
+    };
+}
+
+/* UI 업데이트 */
+function updateRoutePanel(){
+
+    var panel = document.getElementById("routePanel");
+
+    if(selectedMarkers.length === 0){
+        panel.style.display = "none";
+        return;
+    }
+
+    panel.style.display = "block";
+
+    var html = "";
+
+    selectedMarkers.forEach(function(m, i){
+
+        html += `
+        <div class="routeItem">
+            <span>${i+1}번 경유지</span>
+            <div>
+                <button onclick="moveUp(${i})">↑</button>
+                <button onclick="moveDown(${i})">↓</button>
+                <button onclick="removeItem(${i})">X</button>
+            </div>
+        </div>`;
+    });
+
+    html += `<button class="clearBtn" onclick="clearAll()">선택 초기화</button>`;
+
+    panel.innerHTML = html;
+}
+
+function moveUp(i){
+    if(i===0) return;
+    [selectedMarkers[i], selectedMarkers[i-1]] = [selectedMarkers[i-1], selectedMarkers[i]];
+    updateRoutePanel();
+}
+
+function moveDown(i){
+    if(i===selectedMarkers.length-1) return;
+    [selectedMarkers[i], selectedMarkers[i+1]] = [selectedMarkers[i+1], selectedMarkers[i]];
+    updateRoutePanel();
+}
+
+function removeItem(i){
+    selectedMarkers[i].selected = false;
+    selectedMarkers[i].setOpacity(1);
+    selectedMarkers.splice(i,1);
+    updateRoutePanel();
+}
+
+function clearAll(){
+    selectedMarkers.forEach(m=>{
+        m.selected=false;
+        m.setOpacity(1);
+    });
+    selectedMarkers=[];
+    updateRoutePanel();
+}
+
 function createRoute(){
 
     if(selectedMarkers.length < 2){
@@ -239,14 +335,14 @@ function createRoute(){
 
     var url = "https://map.kakao.com/link/to/";
 
-    selectedMarkers.forEach(function(m, i){
-        url += (i+1) + "," + m.lat + "," + m.lng + "/";
+    selectedMarkers.forEach(function(m,i){
+        url += (i+1)+","+m.lat+","+m.lng+"/";
     });
 
-    window.open(url, "_blank");
+    window.open(url);
 }
 
-/* 기존 기능 유지 */
+/* 기존 필터 그대로 */
 function showCategory(event,category){
 
     var subBox = document.getElementById("subBox");
