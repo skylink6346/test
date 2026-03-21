@@ -114,6 +114,30 @@ html, body{
     padding:10px;
     display:none;
     box-shadow:0 2px 8px rgba(0,0,0,0.08);
+    box-sizing:border-box;
+}
+
+.routePanelGrip{
+    margin:-10px -10px 8px -10px;
+    padding:8px 10px 6px 10px;
+    border-bottom:1px solid #eee;
+    cursor:move;
+    touch-action:none;
+    user-select:none;
+}
+
+.routePanelGripDots{
+    width:36px;
+    height:6px;
+    margin:0 auto;
+    border-radius:3px;
+    background:repeating-linear-gradient(
+        to right,
+        #c8c8c8 0px,
+        #c8c8c8 4px,
+        transparent 4px,
+        transparent 7px
+    );
 }
 
 .routeItem{
@@ -311,11 +335,22 @@ html, body{
     }
 
     .routePanel{
-        top:10px;
-        right:10px;
+        top:92px;
+        left:10px;
+        right:auto;
         width:180px;
         padding:8px;
         border-radius:7px;
+    }
+
+    .routePanelGrip{
+        margin:-8px -8px 7px -8px;
+        padding:7px 8px 5px 8px;
+    }
+
+    .routePanelGripDots{
+        width:30px;
+        height:5px;
     }
 
     .routeItem{
@@ -473,6 +508,9 @@ var selectedMarkers = [];
 var dragIndex = null;
 var currentLocation = null;
 var currentLocationOverlay = null;
+var panelDragActive = false;
+var panelDragOffsetX = 0;
+var panelDragOffsetY = 0;
 
 function getMarkerLabel(marker){
     var text = marker.rawHtml
@@ -483,6 +521,10 @@ function getMarkerLabel(marker){
         .trim();
 
     return text || '경유지';
+}
+
+function getRouteLabel(marker){
+    return getMarkerLabel(marker).replace(/\|/g, '-');
 }
 
 function getMarkerOrder(marker){
@@ -637,6 +679,104 @@ function drop(e, i){
     updateRoutePanel();
 }
 
+/* 경유지 패널 이동 */
+function getClientPoint(e){
+    if(e.touches && e.touches.length > 0){
+        return {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+    }
+    if(e.changedTouches && e.changedTouches.length > 0){
+        return {
+            x: e.changedTouches[0].clientX,
+            y: e.changedTouches[0].clientY
+        };
+    }
+    return {
+        x: e.clientX,
+        y: e.clientY
+    };
+}
+
+function startPanelDrag(e){
+    var panel = document.getElementById("routePanel");
+    if(!panel || panel.style.display === "none") return;
+
+    var point = getClientPoint(e);
+    var rect = panel.getBoundingClientRect();
+    var mapRect = mapContainer.getBoundingClientRect();
+
+    var fixedLeft = rect.left - mapRect.left;
+    var fixedTop = rect.top - mapRect.top;
+
+    panel.style.left = fixedLeft + "px";
+    panel.style.top = fixedTop + "px";
+    panel.style.right = "auto";
+
+    panelDragActive = true;
+    panelDragOffsetX = point.x - rect.left;
+    panelDragOffsetY = point.y - rect.top;
+
+    if(e.cancelable){
+        e.preventDefault();
+    }
+}
+
+function movePanelDrag(e){
+    if(!panelDragActive) return;
+
+    var panel = document.getElementById("routePanel");
+    var mapRect = mapContainer.getBoundingClientRect();
+    var point = getClientPoint(e);
+
+    var newLeft = point.x - mapRect.left - panelDragOffsetX;
+    var newTop = point.y - mapRect.top - panelDragOffsetY;
+
+    var maxLeft = mapContainer.clientWidth - panel.offsetWidth - 6;
+    var maxTop = mapContainer.clientHeight - panel.offsetHeight - 6;
+
+    if(newLeft < 6) newLeft = 6;
+    if(newTop < 6) newTop = 6;
+    if(newLeft > maxLeft) newLeft = maxLeft;
+    if(newTop > maxTop) newTop = maxTop;
+
+    panel.style.left = newLeft + "px";
+    panel.style.top = newTop + "px";
+    panel.style.right = "auto";
+
+    if(e.cancelable){
+        e.preventDefault();
+    }
+}
+
+function endPanelDrag(){
+    panelDragActive = false;
+}
+
+function resetMobileRoutePanelPosition(){
+    var panel = document.getElementById("routePanel");
+    if(!panel) return;
+
+    if(window.innerWidth <= 768){
+        panel.style.left = "10px";
+        panel.style.top = "92px";
+        panel.style.right = "auto";
+    } else {
+        panel.style.left = "";
+        panel.style.top = "";
+        panel.style.right = "15px";
+    }
+}
+
+document.addEventListener("mousemove", movePanelDrag);
+document.addEventListener("mouseup", endPanelDrag);
+document.addEventListener("touchmove", movePanelDrag, { passive:false });
+document.addEventListener("touchend", endPanelDrag);
+window.addEventListener("resize", function(){
+    resetMobileRoutePanelPosition();
+});
+
 for (var i=0; i < data.length; i++) {
 
     var lat = data[i][0];
@@ -686,6 +826,7 @@ for (var i=0; i < data.length; i++) {
 function updateRoutePanel(){
 
     var panel = document.getElementById("routePanel");
+    var wasHidden = (panel.style.display === "none" || panel.style.display === "");
 
     if(selectedMarkers.length === 0){
         panel.style.display = "none";
@@ -696,7 +837,10 @@ function updateRoutePanel(){
 
     panel.style.display = "block";
 
-    var html = "";
+    var html = `
+    <div class="routePanelGrip" onmousedown="startPanelDrag(event)" ontouchstart="startPanelDrag(event)">
+        <div class="routePanelGripDots"></div>
+    </div>`;
 
     selectedMarkers.forEach(function(m, i){
 
@@ -722,6 +866,11 @@ function updateRoutePanel(){
     </div>`;
 
     panel.innerHTML = html;
+
+    if(wasHidden){
+        resetMobileRoutePanelPosition();
+    }
+
     refreshInfoWindows();
 }
 
@@ -746,11 +895,33 @@ function createRoute(){
         return;
     }
 
-    var destinationUrl = "https://map.kakao.com/link/to/";
+    function openRouteWithStops(startLat, startLng){
+        var segments = [];
+        segments.push("현재위치," + startLat + "," + startLng);
 
-    selectedMarkers.forEach(function(m,i){
-        destinationUrl += (i+1)+","+m.lat+","+m.lng+"/";
-    });
+        selectedMarkers.forEach(function(m){
+            segments.push(getRouteLabel(m) + "," + m.lat + "," + m.lng);
+        });
+
+        var url = "https://map.kakao.com/link/by/car/" + segments.join("/");
+        window.open(encodeURI(url));
+    }
+
+    function openFallbackRoute(){
+        if(selectedMarkers.length === 1){
+            var one = selectedMarkers[0];
+            window.open(encodeURI("https://map.kakao.com/link/to/" + getRouteLabel(one) + "," + one.lat + "," + one.lng));
+            return;
+        }
+
+        var segments = [];
+        selectedMarkers.forEach(function(m){
+            segments.push(getRouteLabel(m) + "," + m.lat + "," + m.lng);
+        });
+
+        var url = "https://map.kakao.com/link/by/car/" + segments.join("/");
+        window.open(encodeURI(url));
+    }
 
     if(navigator.geolocation){
         navigator.geolocation.getCurrentPosition(
@@ -761,15 +932,10 @@ function createRoute(){
                 };
 
                 setCurrentLocationDot(currentLocation.lat, currentLocation.lng);
-
-                var firstMarker = selectedMarkers[0];
-                var url = "https://map.kakao.com/link/from/현재위치," + currentLocation.lat + "," + currentLocation.lng +
-                          "/to/" + firstMarker.lat + "," + firstMarker.lng;
-
-                window.open(url);
+                openRouteWithStops(currentLocation.lat, currentLocation.lng);
             },
             function(){
-                window.open(destinationUrl);
+                openFallbackRoute();
             },
             {
                 enableHighAccuracy: true,
@@ -778,7 +944,7 @@ function createRoute(){
             }
         );
     } else {
-        window.open(destinationUrl);
+        openFallbackRoute();
     }
 }
 
