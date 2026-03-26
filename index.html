@@ -463,6 +463,7 @@ html, body{
         <button onclick="showCategory(event,'hill')">등판로</button>
         <button onclick="showCategory(event,'tunnel')">방음터널</button>
         <button onclick="showCategory(event,'nscc')">NSCC-C</button>
+        <button onclick="showCategory(event,'isla')">ISLA</button>
     </div>
 
     <div class="subCategoryBox" id="subBox">
@@ -500,6 +501,12 @@ var markerImages = {
     tunnel: new kakao.maps.MarkerImage("GREEN.png", new kakao.maps.Size(23,35), { offset: new kakao.maps.Point(11.5,35) }),
     nscc: new kakao.maps.MarkerImage("SKY.png", new kakao.maps.Size(23,35), { offset: new kakao.maps.Point(11.5,35) })
 };
+
+var islaRoutes = [
+    { name: '구간 1', url: 'https://kko.to/6jOPsXHNGY' },
+    { name: '구간 2', url: 'https://kko.to/Hxe6ffLaX6' },
+    { name: '구간 3', url: 'https://kko.to/vJikfjjhr7' }
+];
 
 var data = [
     [37.39405,127.02518,'<div style="padding:5px">등판로<br>중속영역 8%</div>','hill','8'],
@@ -964,12 +971,51 @@ function createRoute(){
     }
 }
 
+function renderHillSubButtons(){
+    var subBox = document.getElementById("subBox");
+
+    subBox.innerHTML = `
+        <button onclick="filterHill(event,'all')">전체</button>
+        <button onclick="filterHill(event,'4')">4%</button>
+        <button onclick="filterHill(event,'8')">8%</button>
+    `;
+    subBox.style.display = "flex";
+}
+
+function renderIslaSubButtons(){
+    var subBox = document.getElementById("subBox");
+
+    subBox.innerHTML = `
+        <button onclick="openIslaRoute(event, 0)">구간 1</button>
+        <button onclick="openIslaRoute(event, 1)">구간 2</button>
+        <button onclick="openIslaRoute(event, 2)">구간 3</button>
+    `;
+    subBox.style.display = "flex";
+}
+
+function openIslaRoute(event, index){
+    var route = islaRoutes[index];
+    if(!route) return;
+
+    var buttons = document.querySelectorAll(".subCategoryBox button");
+    buttons.forEach(function(btn){
+        btn.classList.remove("active");
+    });
+    if(event && event.target){
+        event.target.classList.add("active");
+    }
+
+    window.open(route.url, "_blank");
+}
+
 function showCategory(event,category){
 
     var subBox = document.getElementById("subBox");
 
     if(category === "hill"){
-        subBox.style.display = "flex";
+        renderHillSubButtons();
+    } else if(category === "isla"){
+        renderIslaSubButtons();
     } else {
         subBox.style.display = "none";
     }
