@@ -461,8 +461,8 @@ html, body{
     <div class="categoryBox">
         <button class="active" onclick="showCategory(event,'all')">전체</button>
         <button onclick="showCategory(event,'hill')">등판로</button>
-        <button onclick="showCategory(event,'tunnel')">방음터널</button>
-        <button onclick="showCategory(event,'nscc')">NSCC-C</button>
+        <button onclick="showCategory(event,'recognition')">인식성능</button>
+        <button onclick="showCategory(event,'nsccGroup')">NSCC</button>
         <button onclick="showCategory(event,'isla')">ISLA</button>
     </div>
 
@@ -982,6 +982,24 @@ function renderHillSubButtons(){
     subBox.style.display = "flex";
 }
 
+function renderRecognitionSubButtons(){
+    var subBox = document.getElementById("subBox");
+
+    subBox.innerHTML = `
+        <button onclick="filterSingleCategory(event,'tunnel')">방음터널</button>
+    `;
+    subBox.style.display = "flex";
+}
+
+function renderNsccSubButtons(){
+    var subBox = document.getElementById("subBox");
+
+    subBox.innerHTML = `
+        <button onclick="filterSingleCategory(event,'nscc')">NSCC-C</button>
+    `;
+    subBox.style.display = "flex";
+}
+
 function renderIslaSubButtons(){
     var subBox = document.getElementById("subBox");
 
@@ -991,6 +1009,22 @@ function renderIslaSubButtons(){
         <button onclick="openIslaRoute(event, 2)">구간 3</button>
     `;
     subBox.style.display = "flex";
+}
+
+function filterSingleCategory(event, category){
+    for(var i=0;i<markers.length;i++){
+        if(markers[i].category === category){
+            markers[i].setMap(map);
+        } else {
+            markers[i].setMap(null);
+        }
+    }
+
+    var buttons = document.querySelectorAll(".subCategoryBox button");
+    buttons.forEach(function(btn){
+        btn.classList.remove("active");
+    });
+    event.target.classList.add("active");
 }
 
 function openIslaRoute(event, index){
@@ -1014,6 +1048,10 @@ function showCategory(event,category){
 
     if(category === "hill"){
         renderHillSubButtons();
+    } else if(category === "recognition"){
+        renderRecognitionSubButtons();
+    } else if(category === "nsccGroup"){
+        renderNsccSubButtons();
     } else if(category === "isla"){
         renderIslaSubButtons();
     } else {
@@ -1024,6 +1062,20 @@ function showCategory(event,category){
 
         if(category === "all"){
             markers[i].setMap(map);
+
+        } else if(category === "recognition"){
+            if(markers[i].category === "tunnel"){
+                markers[i].setMap(map);
+            } else {
+                markers[i].setMap(null);
+            }
+
+        } else if(category === "nsccGroup"){
+            if(markers[i].category === "nscc"){
+                markers[i].setMap(map);
+            } else {
+                markers[i].setMap(null);
+            }
 
         } else if(markers[i].category === category){
             markers[i].setMap(map);
